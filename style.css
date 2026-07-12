@@ -256,8 +256,9 @@ body {
 }
 
 .input-group textarea {
-  resize: vertical;
+  resize: none;
   min-height: 100px;
+  overflow-y: hidden;
 }
 
 .input-group input:focus, .input-group textarea:focus, .input-group select:focus {

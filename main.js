@@ -102,6 +102,11 @@ function renderInputs(inputs) {
     if (input.type === 'textarea') {
       el = document.createElement('textarea');
       el.placeholder = input.placeholder || '';
+      // Ajustar altura automáticamente al escribir o pegar
+      el.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
+      });
     } else if (input.type === 'select') {
       el = document.createElement('select');
       input.options.forEach(opt => {
