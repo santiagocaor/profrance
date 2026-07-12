@@ -27,10 +27,23 @@ export const modules = [
     inputs: [
       { id: 'input_lista', label: 'Lista de palabras (hasta 20)', type: 'textarea', placeholder: 'Palabra 1, Palabra 2...' }
     ],
-    generatePrompt: (data) => `Convierte esta lista en un mazo de tarjetas de repaso: '${data.input_lista}'. Para cada palabra muestra: 
-- **Palabra:** [Francés] -> [Traducción al Español]
-- **Pronunciación:** Una guía fonética simplificada adaptada a la lectura en español (destacando sonidos nasales o letras mudas).
-- **Ejemplo:** Una frase corta y cotidiana en francés usando la palabra, junto con su traducción.`
+    generatePrompt: (data) => `Convierte esta lista de palabras en un mazo de tarjetas 3D: '${data.input_lista}'.
+Regla estricta: No escribas explicaciones ni texto fuera del HTML. Por cada palabra, devuelve EXACTAMENTE la siguiente estructura HTML, reemplazando los corchetes con el contenido correcto en francés de Quebec:
+
+<div class="flashcard-container">
+  <div class="flashcard-inner">
+    <div class="flashcard-front">
+      <div class="flashcard-word"><span class="fr-click">[Palabra en Francés]</span></div>
+      <div class="flashcard-pronunciation">[Pronunciación adaptada al español]</div>
+      <div class="flashcard-hint">Haz clic para voltear</div>
+    </div>
+    <div class="flashcard-back">
+      <div class="flashcard-translation">[Traducción al Español]</div>
+      <div class="flashcard-example" style="margin-bottom: 0.5rem;"><span class="fr-click">[Ejemplo 1 de uso cotidiano]</span><br><small>[Traducción del ejemplo 1]</small></div>
+      <div class="flashcard-example"><span class="fr-click">[Ejemplo 2 de uso cotidiano]</span><br><small>[Traducción del ejemplo 2]</small></div>
+    </div>
+  </div>
+</div>`
   },
   {
     id: 'chat',
@@ -49,11 +62,14 @@ export const modules = [
     inputs: [
       { id: 'input_regla', label: 'Regla o duda', type: 'text', placeholder: 'Ej: Diferencia entre POUR y PAR' }
     ],
-    generatePrompt: (data) => `Explica la siguiente regla del francés: '${data.input_regla}'. Divide la explicación en: 
-### Análisis Gramatical 🧠
-1. **Comparación:** ¿Cómo expresaríamos esta misma lógica o idea en español?
-2. **Alerta de Error:** ¿Cuál es el error típico que comete un hispanohablante al intentar usar esta regla?
-3. **Práctica:** Dame 3 frases cortas en español para que yo intente traducirlas al francés basándome en tu explicación.`
+    generatePrompt: (data) => `Explica de forma MUY AMPLIA Y DETALLADA la siguiente regla del francés: '${data.input_regla}'.
+Regla estricta: Tu explicación debe ser exhaustiva, profunda, llena de ejemplos variados en diferentes contextos, y TODOS los ejemplos deben incluir su traducción al español.
+Divide la explicación en: 
+### Análisis Gramatical Profundo 🧠
+1. **Explicación Detallada:** Explica la regla paso a paso con abundantes ejemplos.
+2. **Comparación:** ¿Cómo expresaríamos esta misma lógica o idea en español?
+3. **Alerta de Error:** ¿Cuál es el error típico que comete un hispanohablante al intentar usar esta regla?
+4. **Práctica:** Dame 3 frases en español para que yo intente traducirlas al francés basándome en tu explicación.`
   },
   {
     id: 'diario',
@@ -89,6 +105,32 @@ Una lista numerada con los errores detectados, clasificándolos explícitamente 
 1. Las 5 expresiones idiomáticas o verbos compuestos más útiles del texto, explicados en español.
 2. Alerta de 'Falsos Amigos' presentes en el texto si los hay.
 3. Hazme 3 preguntas de comprensión de lectura formuladas en francés para que yo las responda en francés.`
+  },
+  {
+    id: 'lectura',
+    title: 'Práctica de Lectura',
+    description: 'Genera textos para practicar lectura y vocabulario.',
+    inputs: [
+      { id: 'input_nivel', label: 'Nivel', type: 'select', options: ['A1', 'A2', 'B1', 'B2', 'C1'] },
+      { id: 'input_tema', label: 'Tema (o "Sugiéreme uno")', type: 'text', placeholder: 'Ej: Historia de Quebec' },
+      { id: 'input_longitud', label: 'Longitud del texto', type: 'select', options: ['Corto (1-2 min)', 'Medio (3-5 min)', 'Largo (5-10 min)'] }
+    ],
+    generatePrompt: (data) => `Genera un texto inmersivo de lectura en francés de Quebec basado en el tema '${data.input_tema}'.
+El nivel debe ser estrictamente '${data.input_nivel}' y la longitud '${data.input_longitud}'.
+REGLA ESTRICTA: NO utilices abreviaciones informales de la lengua oral (como "t'es", "y a" escrito como "y'a", "chu", etc.) ni jerga callejera pesada. El texto debe estar escrito en francés quebequés estándar y gramaticalmente correcto, ideal para un estudiante que necesita aprender la estructura formal del idioma.
+Estructura la respuesta de la siguiente forma:
+
+### 📖 Texto en Francés
+[Aquí el texto completo en francés de Quebec. Envuelve CADA PÁRRAFO COMPLETO en <span class="fr-click">...</span> para que el usuario pueda escucharlo haciendo clic]
+
+### 🇪🇸 Traducción al Español
+[Traducción fiel y natural del texto completo al español latino]
+
+### 🧠 Glosario y Modismos
+[Lista de las 5 palabras, expresiones o 'sacres' más interesantes o difíciles del texto, explicadas brevemente. Envuelve las palabras en francés en <span class="fr-click">...</span>]
+
+### 🎯 Comprensión
+[3 preguntas cortas en francés sobre el texto para que yo las responda mentalmente. Envuelve cada pregunta en <span class="fr-click">...</span>]`
   },
   {
     id: 'saved_lessons',

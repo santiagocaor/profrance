@@ -17,7 +17,10 @@ const dom = {
   saveBtn: document.getElementById('save-btn'),
   mobileMenuBtn: document.getElementById('mobile-menu-btn'),
   closeSidebarBtn: document.getElementById('close-sidebar-btn'),
-  sidebar: document.querySelector('.sidebar')
+  sidebar: document.querySelector('.sidebar'),
+  exportBtn: document.getElementById('export-btn'),
+  importBtn: document.getElementById('import-btn'),
+  importFile: document.getElementById('import-file'),
 };
 
 let currentLessonTitle = '';
@@ -151,6 +154,11 @@ function setupEvents() {
   
   // Save Lesson
   dom.saveBtn.addEventListener('click', saveCurrentLesson);
+
+  // Export / Import
+  dom.exportBtn.addEventListener('click', exportLessons);
+  dom.importBtn.addEventListener('click', () => dom.importFile.click());
+  dom.importFile.addEventListener('change', importLessons);
 }
 
 async function executePrompt(apiKey, prompt) {
@@ -367,15 +375,100 @@ function deleteLesson(id, currentFilter) {
     renderSavedLessonsView(currentFilter);
 }
 
-// Re-añadir el global listener para los textos en francés de lecciones cargadas
+// --- EXPORT / IMPORT LOGIC ---
+function exportLessons() {
+    const lessons = getSavedLessons();
+    if(lessons.length === 0) {
+        alert("No tienes lecciones guardadas para exportar.");
+        return;
+    }
+    
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(lessons, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `lecciones_frances_quebec_${new Date().toISOString().slice(0,10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+}
+
+function importLessons(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            const imported = JSON.parse(evt.target.result);
+            if (!Array.isArray(imported)) throw new Error("El archivo no contiene un listado válido.");
+            
+            // Validar estructura básica
+            if (imported.length > 0 && (!imported[0].id || !imported[0].title || !imported[0].content)) {
+                throw new Error("El formato de las lecciones no es compatible.");
+            }
+            
+            const existing = getSavedLessons();
+            
+            // Evitar duplicados basados en ID o contenido
+            const merged = [...existing];
+            imported.forEach(imp => {
+                if(!existing.some(ext => ext.content === imp.content)) {
+                    merged.push(imp);
+                }
+            });
+            
+            localStorage.setItem('savedLessons', JSON.stringify(merged));
+            alert(`¡Importación exitosa! Se añadieron ${merged.length - existing.length} lecciones nuevas.`);
+            
+            if(currentModule.id === 'saved_lessons') {
+                renderSavedLessonsView();
+            }
+        } catch(err) {
+            alert("Error al importar el archivo: " + err.message);
+        }
+        // Reset file input
+        dom.importFile.value = '';
+    };
+    reader.readAsText(file);
+}
+
+// Re-añadir el global listener para los textos en francés de lecciones cargadas y tarjetas
 dom.outputContent.addEventListener('click', (e) => {
   if (e.target.classList.contains('fr-click')) {
-    window.speechSynthesis.cancel();
     const textToRead = e.target.innerText;
     const utterance = new SpeechSynthesisUtterance(textToRead);
-    utterance.lang = 'fr-FR';
+    
+    // Lógica para seleccionar voz natural/premium
+    const voices = window.speechSynthesis.getVoices();
+    const frVoices = voices.filter(v => v.lang.startsWith('fr-CA') || v.lang.startsWith('fr-FR') || v.lang.startsWith('fr-'));
+    
+    if (frVoices.length > 0) {
+        // 1. Buscar voz de Quebec natural/neuronal
+        let bestVoice = frVoices.find(v => v.lang.startsWith('fr-CA') && (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Google') || v.name.includes('Premium')));
+        // 2. Buscar voz francesa genérica natural/neuronal
+        if (!bestVoice) bestVoice = frVoices.find(v => v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Google') || v.name.includes('Premium'));
+        // 3. Buscar voz de Quebec estándar
+        if (!bestVoice) bestVoice = frVoices.find(v => v.lang.startsWith('fr-CA'));
+        // 4. Fallback a la primera voz francesa disponible
+        if (!bestVoice) bestVoice = frVoices[0];
+        
+        utterance.voice = bestVoice;
+    } else {
+        utterance.lang = 'fr-CA'; 
+    }
+    
     utterance.rate = 0.9;
     window.speechSynthesis.speak(utterance);
+    
+    // Evitar que la tarjeta gire si estamos haciendo clic para escuchar
+    e.stopPropagation();
+    return;
+  }
+  
+  // Lógica de giro para tarjetas 3D
+  const cardInner = e.target.closest('.flashcard-inner');
+  if(cardInner) {
+      cardInner.parentElement.classList.toggle('flipped');
   }
 });
 

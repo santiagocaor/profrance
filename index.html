@@ -26,6 +26,11 @@
       <div class="settings">
         <label for="api-key">Gemini API Key:</label>
         <input type="password" id="api-key" placeholder="Pega tu API Key aquí">
+        <div class="settings-actions" style="margin-top: 0.8rem; display: flex; gap: 0.5rem;">
+          <button id="export-btn" class="btn-primary" style="margin-top: 0; padding: 0.5rem; font-size: 0.85rem; background: var(--bg-color); color: var(--text-primary); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; gap: 0.2rem;" title="Exportar Lecciones"><span class="material-symbols-outlined">download</span> Exportar</button>
+          <button id="import-btn" class="btn-primary" style="margin-top: 0; padding: 0.5rem; font-size: 0.85rem; background: var(--bg-color); color: var(--text-primary); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; gap: 0.2rem;" title="Importar Lecciones"><span class="material-symbols-outlined">upload</span> Importar</button>
+          <input type="file" id="import-file" style="display: none;" accept=".json">
+        </div>
       </div>
     </aside>
 
