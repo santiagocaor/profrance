@@ -417,6 +417,13 @@ body {
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 0.5rem;
 }
+.markdown-body ul, .markdown-body ol {
+  font-size: 0.95rem;
+  color: var(--text-secondary); /* Color más claro */
+}
+.markdown-body li {
+  margin-bottom: 0.8rem;
+}
 .markdown-body p {
   margin-bottom: 1rem;
 }

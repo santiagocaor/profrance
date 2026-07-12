@@ -209,7 +209,7 @@ async function executePrompt(apiKey, prompt) {
     
     // Check if marked is loaded globally
     if (typeof marked !== 'undefined') {
-      const html = marked.parse(responseText);
+      const html = marked.parse(preprocessMarkdown(responseText));
       dom.outputContent.innerHTML = processFrenchText(html);
     } else {
       dom.outputContent.innerHTML = `<pre style="white-space: pre-wrap;">${responseText}</pre>`;
@@ -551,7 +551,7 @@ function renderChatInterface(apiKey) {
         bubble.className = `chat-bubble ${msg.role.toLowerCase()}`;
         
         if (msg.role === 'AI') {
-            bubble.innerHTML = processFrenchText(marked.parse(msg.text));
+            bubble.innerHTML = processFrenchText(marked.parse(preprocessMarkdown(msg.text)));
         } else {
             bubble.innerText = msg.text;
         }
@@ -610,10 +610,10 @@ Por favor responde a mi último mensaje en francés de Quebec continuando el di�
         const responseText = await generateContent(apiKey, prompt);
         chatHistory.push({ role: 'AI', text: responseText });
         
-        const aiBubble = document.createElement('div');
-        aiBubble.className = 'chat-bubble ai';
-        aiBubble.innerHTML = processFrenchText(marked.parse(responseText));
-        box.appendChild(aiBubble);
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble ai';
+        bubble.innerHTML = processFrenchText(marked.parse(preprocessMarkdown(responseText)));
+        box.appendChild(bubble);
         box.scrollTop = box.scrollHeight;
         
     } catch(error) {
@@ -649,6 +649,11 @@ function speakText(text) {
     
     utterance.rate = 0.9;
     window.speechSynthesis.speak(utterance);
+}
+
+function preprocessMarkdown(text) {
+    // Si la IA envolvió el span HTML en backticks de código, removemos los backticks para que se renderice como HTML vivo
+    return text.replace(/`(<span\b[^>]*>.*?<\/span>)`/gi, '$1');
 }
 
 function processFrenchText(html) {
