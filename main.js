@@ -21,9 +21,13 @@ const dom = {
   exportBtn: document.getElementById('export-btn'),
   importBtn: document.getElementById('import-btn'),
   importFile: document.getElementById('import-file'),
+  copyBtn: document.getElementById('copy-btn'),
 };
 
 let currentLessonTitle = '';
+let chatHistory = [];
+let currentChatLevel = '';
+let currentChatTopic = '';
 
 function init() {
   const savedKey = localStorage.getItem('geminiApiKey');
@@ -65,7 +69,9 @@ function selectModule(id) {
   // Reset output
   dom.outputContent.innerHTML = '<p class="placeholder-text">La respuesta aparecerá aquí...</p>';
   dom.saveBtn.classList.add('hidden');
+  dom.copyBtn.classList.add('hidden');
   currentResponseText = '';
+  chatHistory = [];
   
   if(window.innerWidth <= 768) {
       dom.sidebar.classList.remove('open');
@@ -126,12 +132,37 @@ function setupEvents() {
     const formData = new FormData(dom.form);
     const data = Object.fromEntries(formData.entries());
     
-    const prompt = currentModule.generatePrompt(data);
     const apiKey = dom.apiKeyInput.value.trim();
+    if (!apiKey) {
+      alert('Por favor, ingresa tu Gemini API Key en la barra lateral.');
+      return;
+    }
     
     if (apiKey) {
       localStorage.setItem('geminiApiKey', apiKey);
     }
+
+    if (currentModule.id === 'chat') {
+        chatHistory = [];
+        currentChatLevel = data.input_nivel;
+        currentChatTopic = data.input_tema;
+        
+        try {
+            setLoading(true);
+            const prompt = currentModule.generatePrompt(data);
+            const greeting = await generateContent(apiKey, prompt);
+            
+            chatHistory.push({ role: 'AI', text: greeting });
+            renderChatInterface(apiKey);
+        } catch (error) {
+            dom.outputContent.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+        } finally {
+            setLoading(false);
+        }
+        return;
+    }
+    
+    const prompt = currentModule.generatePrompt(data);
     
     // Auto-generar título basado en el input más relevante del módulo
     let rawTitle = data.input_tema || data.input_lista || data.input_regla || data.input_estudio || data.input_texto || currentModule.title;
@@ -154,6 +185,9 @@ function setupEvents() {
   
   // Save Lesson
   dom.saveBtn.addEventListener('click', saveCurrentLesson);
+  
+  // Copy to clipboard
+  dom.copyBtn.addEventListener('click', copyToClipboard);
 
   // Export / Import
   dom.exportBtn.addEventListener('click', exportLessons);
@@ -170,13 +204,15 @@ async function executePrompt(apiKey, prompt) {
     
     // Check if marked is loaded globally
     if (typeof marked !== 'undefined') {
-      dom.outputContent.innerHTML = marked.parse(responseText);
+      const html = marked.parse(responseText);
+      dom.outputContent.innerHTML = processFrenchText(html);
     } else {
       dom.outputContent.innerHTML = `<pre style="white-space: pre-wrap;">${responseText}</pre>`;
     }
 
     // Activar botones
     dom.saveBtn.classList.remove('hidden');
+    dom.copyBtn.classList.remove('hidden');
 
   } catch (error) {
     let errorMsg = error.message;
@@ -355,12 +391,14 @@ function loadLesson(lesson) {
     currentResponseText = lesson.content;
     
     if (typeof marked !== 'undefined') {
-      dom.outputContent.innerHTML = marked.parse(lesson.content);
+      const html = marked.parse(lesson.content);
+      dom.outputContent.innerHTML = processFrenchText(html);
     } else {
       dom.outputContent.innerHTML = `<pre style="white-space: pre-wrap;">${lesson.content}</pre>`;
     }
     
     dom.saveBtn.classList.add('hidden'); // Ya está guardada
+    dom.copyBtn.classList.remove('hidden'); // Permitir copiar lecciones cargadas
     
     if(window.innerWidth <= 768) {
         dom.sidebar.classList.remove('open');
@@ -373,6 +411,18 @@ function deleteLesson(id, currentFilter) {
     lessons = lessons.filter(l => l.id !== id);
     localStorage.setItem('savedLessons', JSON.stringify(lessons));
     renderSavedLessonsView(currentFilter);
+}
+
+async function copyToClipboard() {
+    if (!currentResponseText) return;
+    try {
+        await navigator.clipboard.writeText(currentResponseText);
+        const originalText = dom.copyBtn.innerHTML;
+        dom.copyBtn.innerHTML = '<span class="material-symbols-outlined">check_circle</span>';
+        setTimeout(() => { dom.copyBtn.innerHTML = originalText; }, 2000);
+    } catch(err) {
+        alert("No se pudo copiar: " + err);
+    }
 }
 
 // --- EXPORT / IMPORT LOGIC ---
@@ -434,33 +484,32 @@ function importLessons(e) {
 
 // Re-añadir el global listener para los textos en francés de lecciones cargadas y tarjetas
 dom.outputContent.addEventListener('click', (e) => {
+  // 1. Clic en palabra individual
+  if (e.target.classList.contains('fr-word')) {
+    const word = e.target.innerText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g,"").trim();
+    speakText(word);
+    e.stopPropagation();
+    return;
+  }
+  
+  // 2. Clic en reproducir frase completa (altavoz)
+  if (e.target.classList.contains('fr-sentence-play')) {
+    const parent = e.target.closest('.fr-click');
+    if (parent) {
+        const clone = parent.cloneNode(true);
+        const playIcon = clone.querySelector('.fr-sentence-play');
+        if (playIcon) playIcon.remove();
+        const textToRead = clone.innerText.trim();
+        speakText(textToRead);
+    }
+    e.stopPropagation();
+    return;
+  }
+  
+  // 3. Compatibilidad por si queda algún fr-click crudo sin procesar
   if (e.target.classList.contains('fr-click')) {
     const textToRead = e.target.innerText;
-    const utterance = new SpeechSynthesisUtterance(textToRead);
-    
-    // Lógica para seleccionar voz natural/premium
-    const voices = window.speechSynthesis.getVoices();
-    const frVoices = voices.filter(v => v.lang.startsWith('fr-CA') || v.lang.startsWith('fr-FR') || v.lang.startsWith('fr-'));
-    
-    if (frVoices.length > 0) {
-        // 1. Buscar voz de Quebec natural/neuronal
-        let bestVoice = frVoices.find(v => v.lang.startsWith('fr-CA') && (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Google') || v.name.includes('Premium')));
-        // 2. Buscar voz francesa genérica natural/neuronal
-        if (!bestVoice) bestVoice = frVoices.find(v => v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Google') || v.name.includes('Premium'));
-        // 3. Buscar voz de Quebec estándar
-        if (!bestVoice) bestVoice = frVoices.find(v => v.lang.startsWith('fr-CA'));
-        // 4. Fallback a la primera voz francesa disponible
-        if (!bestVoice) bestVoice = frVoices[0];
-        
-        utterance.voice = bestVoice;
-    } else {
-        utterance.lang = 'fr-CA'; 
-    }
-    
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
-    
-    // Evitar que la tarjeta gire si estamos haciendo clic para escuchar
+    speakText(textToRead);
     e.stopPropagation();
     return;
   }
@@ -471,6 +520,150 @@ dom.outputContent.addEventListener('click', (e) => {
       cardInner.parentElement.classList.toggle('flipped');
   }
 });
+
+// --- INTERACTIVE CHAT ENGINE ---
+function renderChatInterface(apiKey) {
+    dom.saveBtn.classList.add('hidden'); // Desactivar botón guardar mientras chatea
+    dom.copyBtn.classList.add('hidden');
+    
+    dom.outputContent.innerHTML = `
+      <div class="chat-container">
+        <div class="chat-messages" id="chat-messages-box"></div>
+        <div class="chat-input-bar">
+          <input type="text" id="chat-user-input" placeholder="Responde en francés de Quebec...">
+          <button id="chat-send-btn"><span class="material-symbols-outlined">send</span> Enviar</button>
+        </div>
+      </div>
+    `;
+    
+    const box = document.getElementById('chat-messages-box');
+    const input = document.getElementById('chat-user-input');
+    const btn = document.getElementById('chat-send-btn');
+    
+    // Renderizar mensajes del historial
+    chatHistory.forEach(msg => {
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${msg.role.toLowerCase()}`;
+        
+        if (msg.role === 'AI') {
+            bubble.innerHTML = processFrenchText(marked.parse(msg.text));
+        } else {
+            bubble.innerText = msg.text;
+        }
+        box.appendChild(bubble);
+    });
+    box.scrollTop = box.scrollHeight;
+    
+    // Eventos del input
+    btn.addEventListener('click', () => sendChatMessage(apiKey));
+    input.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') {
+            sendChatMessage(apiKey);
+        }
+    });
+    
+    input.focus();
+}
+
+async function sendChatMessage(apiKey) {
+    const input = document.getElementById('chat-user-input');
+    const btn = document.getElementById('chat-send-btn');
+    const text = input.value.trim();
+    if(!text) return;
+    
+    // Deshabilitar inputs
+    input.disabled = true;
+    btn.disabled = true;
+    
+    // Guardar mensaje de usuario
+    chatHistory.push({ role: 'User', text: text });
+    
+    // Renderizado inmediato
+    const box = document.getElementById('chat-messages-box');
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble user';
+    bubble.innerText = text;
+    box.appendChild(bubble);
+    box.scrollTop = box.scrollHeight;
+    
+    input.value = '';
+    
+    // Prompt dinámico acumulativo con historial
+    const prompt = `Conversación interactiva en francés de Quebec (Nivel: ${currentChatLevel}, Tema: ${currentChatTopic}).
+Estás actuando como un hablante nativo entablando un diálogo continuo.
+Reglas estrictas de respuesta:
+1) Escribe máximo dos frases cortas por turno para mantener la fluidez del diálogo.
+2) Si cometí un error gramatical, ortográfico o calco del español en mi último mensaje, debes iniciar tu respuesta escribiendo "[CORRECCIÓN: ...]" en español aclarando el error de forma muy directa y amigable. Luego continúa el diálogo normalmente dentro de tu personaje en francés. Si mi mensaje no contiene errores, no añadas ninguna sección de corrección.
+3) Si hay algún modismo o pronunciación típica de Quebec aplicable a lo que dices, añade al final de tu mensaje una nota corta: "*🇨🇦 Nota para Quebec: ...*".
+
+Historial de la conversación:
+${chatHistory.map(m => `${m.role === 'AI' ? 'Tú (Profesor)' : 'Yo (Estudiante)'}: ${m.text}`).join('\n')}
+
+Por favor responde a mi último mensaje en francés de Quebec continuando el diálogo.`;
+
+    try {
+        const responseText = await generateContent(apiKey, prompt);
+        chatHistory.push({ role: 'AI', text: responseText });
+        
+        const aiBubble = document.createElement('div');
+        aiBubble.className = 'chat-bubble ai';
+        aiBubble.innerHTML = processFrenchText(marked.parse(responseText));
+        box.appendChild(aiBubble);
+        box.scrollTop = box.scrollHeight;
+        
+    } catch(error) {
+        const errBubble = document.createElement('div');
+        errBubble.className = 'chat-bubble ai';
+        errBubble.style.color = 'var(--error)';
+        errBubble.innerText = "Error al enviar mensaje: " + error.message;
+        box.appendChild(errBubble);
+    } finally {
+        input.disabled = false;
+        btn.disabled = false;
+        input.focus();
+    }
+}
+
+// --- HELPER AUDIO & PARSER FUNCTIONS ---
+function speakText(text) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voices = window.speechSynthesis.getVoices();
+    const frVoices = voices.filter(v => v.lang.startsWith('fr-CA') || v.lang.startsWith('fr-FR') || v.lang.startsWith('fr-'));
+    
+    if (frVoices.length > 0) {
+        let bestVoice = frVoices.find(v => v.lang.startsWith('fr-CA') && (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Google') || v.name.includes('Premium')));
+        if (!bestVoice) bestVoice = frVoices.find(v => v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Google') || v.name.includes('Premium'));
+        if (!bestVoice) bestVoice = frVoices.find(v => v.lang.startsWith('fr-CA'));
+        if (!bestVoice) bestVoice = frVoices[0];
+        
+        utterance.voice = bestVoice;
+    } else {
+        utterance.lang = 'fr-CA'; 
+    }
+    
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+}
+
+function processFrenchText(html) {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    const clickElements = tempDiv.querySelectorAll('.fr-click');
+    clickElements.forEach(el => {
+        if (el.querySelector('.fr-word')) return; // Ya procesado
+        
+        const rawText = el.innerText.trim();
+        const words = rawText.split(/\s+/);
+        
+        const newContent = words.map(w => `<span class="fr-word">${w}</span>`).join(' ');
+        
+        el.innerHTML = `${newContent} <span class="material-symbols-outlined fr-sentence-play" title="Reproducir frase completa">volume_up</span>`;
+    });
+    
+    return tempDiv.innerHTML;
+}
 
 // Iniciar app
 init();

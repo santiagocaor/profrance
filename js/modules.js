@@ -6,7 +6,14 @@ export const modules = [
     inputs: [
       { id: 'input_texto', label: 'Texto en Español o Francés', type: 'textarea', placeholder: 'Pega aquí el texto...' }
     ],
-    generatePrompt: (data) => `Traduce el siguiente texto: '${data.input_texto}'. Envuelve la traducción resultante al francés estrictamente dentro de etiquetas <fr-audio> y </fr-audio> (por ejemplo: <fr-audio>Bonjour tout le monde</fr-audio>). No añadas texto introductorio ni explicaciones antes de la traducción. Luego, genera una sección llamada '### Lupa Pedagógica 🔍' donde expliques de forma MUY BREVE y con viñetas cortas: 1) 1 o 2 giros idiomáticos o trampas de traducción literal. 2) Un solo consejo fonético esencial. Sé directo al grano.`
+    generatePrompt: (data) => `Analiza el texto ingresado: '${data.input_texto}'.
+1. Si el texto está en español, tradúcelo al francés. La traducción resultante en francés debe estar estrictamente envuelta en <span class="fr-click">...</span>.
+2. Si el texto está en francés, muestra primero el texto original en francés envuelto en <span class="fr-click">...</span>, y luego añade un salto de línea doble y escribe la traducción al español justo debajo.
+No añadas saludos ni introducciones antes de la traducción. Asegúrate de separar el francés y el español con un salto de línea doble para que no se peguen en la misma línea.
+Luego, genera la sección '### Lupa Pedagógica 🔍' explicando en viñetas cortas:
+- 1 o 2 giros idiomáticos, falsos amigos o diferencias gramaticales importantes con el español.
+- Un consejo fonético esencial.
+REGLA ESTRICTA DE FORMATO: En la Lupa Pedagógica, NUNCA uses comillas invertidas (\` \`) para resaltar palabras o frases en francés. En su lugar, usa negritas y envuélvelas estrictamente en <span class="fr-click">...</span> para que el usuario pueda hacer clic y escucharlas.`
   },
   {
     id: 'leccion',
@@ -50,7 +57,7 @@ Regla estricta: No escribas explicaciones ni texto fuera del HTML. Por cada pala
     title: 'Simulador de Conversación',
     description: 'Chat interactivo con corrección en tiempo real.',
     inputs: [
-      { id: 'input_nivel', label: 'Nivel', type: 'select', options: ['A1', 'A2', 'B1'] },
+      { id: 'input_nivel', label: 'Nivel', type: 'select', options: ['A1', 'A2', 'B1', 'B2'] },
       { id: 'input_tema', label: 'Tema de la charla', type: 'text', placeholder: 'Ej: Hablar sobre pasatiempos' }
     ],
     generatePrompt: (data) => `Actúa como un hablante nativo de francés y entabla un diálogo conmigo sobre '${data.input_tema}'. Reglas estrictas: 1) Escribe máximo dos frases cortas por turno para mantener la fluidez. 2) Mantén el nivel en '${data.input_nivel}'. 3) Si cometo un error gramatical, estructural o un calco del español, pon la corrección en español entre corchetes '[CORRECCIÓN: ...]' al inicio de tu mensaje, explícame el porqué brevemente, y luego continúa la conversación normalmente dentro de tu personaje. Empieza tú saludándome.`
