@@ -10,10 +10,10 @@ export const modules = [
 1. Si el texto está en español, tradúcelo al francés. La traducción resultante en francés debe estar estrictamente envuelta en <span class="fr-click">...</span>.
 2. Si el texto está en francés, muestra primero el texto original en francés envuelto en <span class="fr-click">...</span>, y luego añade un salto de línea doble y escribe la traducción al español justo debajo.
 No añadas saludos ni introducciones antes de la traducción. Asegúrate de separar el francés y el español con un salto de línea doble para que no se peguen en la misma línea.
-Luego, genera la sección '### Lupa Pedagógica 🔍' explicando en viñetas cortas:
+Luego, genera la sección '### <span class="material-symbols-outlined">lightbulb</span> Consejos del Profesor' explicando en viñetas cortas:
 - 1 o 2 giros idiomáticos, falsos amigos o diferencias gramaticales importantes con el español.
 - Un consejo fonético esencial.
-REGLA ESTRICTA DE FORMATO: En la Lupa Pedagógica, NUNCA uses comillas invertidas (\` \`) para resaltar palabras o frases en francés. En su lugar, usa negritas y envuélvelas estrictamente en <span class="fr-click">...</span> para que el usuario pueda hacer clic y escucharlas.`
+REGLA ESTRICTA DE FORMATO: En la sección Consejos del Profesor, NUNCA uses comillas invertidas (\` \`) para resaltar palabras o frases en francés. En su lugar, usa negritas y envuélvelas estrictamente en <span class="fr-click">...</span> para que el usuario pueda hacer clic y escucharlas.`
   },
   {
     id: 'leccion',
