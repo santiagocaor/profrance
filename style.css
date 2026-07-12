@@ -224,11 +224,10 @@ body {
 .input-panel form {
   display: flex;
   flex-direction: column;
-  height: 100%;
 }
 
 #dynamic-inputs {
-  flex: 1;
+  /* Shrink to content height */
 }
 
 .input-group {
@@ -298,9 +297,9 @@ body {
   padding: 0;
   align-self: flex-end;
   margin-top: 1rem;
-  background-color: #25d366; /* Verde WhatsApp */
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.2);
+  background-color: var(--text-primary); /* Negro minimalista */
+  color: var(--bg-color); /* Blanco */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transition: transform 0.2s, background-color 0.2s, box-shadow 0.2s;
 }
 
@@ -310,9 +309,10 @@ body {
 }
 
 #submit-btn:hover {
-  background-color: #20ba5a;
+  background-color: var(--accent-hover); /* Azul pastel al pasar el cursor */
+  color: var(--text-primary);
   transform: scale(1.08);
-  box-shadow: 0 6px 16px rgba(37, 211, 102, 0.3);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 .btn-primary:disabled {
