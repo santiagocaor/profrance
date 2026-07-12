@@ -2,7 +2,7 @@ export const modules = [
   {
     id: 'traductor',
     title: 'Traductor Inteligente',
-    description: 'Traduce texto con una lupa pedagógica para hispanohablantes.',
+    description: '',
     inputs: [
       { id: 'input_texto', label: 'Texto en Español o Francés', type: 'textarea', placeholder: 'Pega aquí el texto...' }
     ],

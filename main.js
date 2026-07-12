@@ -594,7 +594,7 @@ Estás actuando como un hablante nativo entablando un diálogo continuo.
 Reglas estrictas de respuesta:
 1) Escribe máximo dos frases cortas por turno para mantener la fluidez del diálogo.
 2) Si cometí un error gramatical, ortográfico o calco del español en mi último mensaje, debes iniciar tu respuesta escribiendo "[CORRECCIÓN: ...]" en español aclarando el error de forma muy directa y amigable. Luego continúa el diálogo normalmente dentro de tu personaje en francés. Si mi mensaje no contiene errores, no añadas ninguna sección de corrección.
-3) Si hay algún modismo o pronunciación típica de Quebec aplicable a lo que dices, añade al final de tu mensaje una nota corta: "*🇨🇦 Nota para Quebec: ...*".
+3) Si hay algún modismo o pronunciación típica de Quebec aplicable a lo que dices, añade al final de tu mensaje una nota corta explicativa en cursiva (ej: "*En Quebec se suele decir...*"). No añadas prefijos como "Nota para Quebec:".
 
 Historial de la conversación:
 ${chatHistory.map(m => `${m.role === 'AI' ? 'Tú (Profesor)' : 'Yo (Estudiante)'}: ${m.text}`).join('\n')}
@@ -647,6 +647,10 @@ function speakText(text) {
 }
 
 function processFrenchText(html) {
+    // Limpiar prefijos redundantes de Quebec para que solo se vea la explicación
+    html = html.replace(/(\*|_){1,2}\s*(?:🇨🇦\s*)?Nota para Quebec:?\s*(\*|_){1,2}\s*/gi, '');
+    html = html.replace(/(?:🇨🇦\s*)?Nota para Quebec:?\s*/gi, '');
+    
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     
