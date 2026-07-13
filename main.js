@@ -420,8 +420,23 @@ function deleteLesson(id, currentFilter) {
 
 async function copyToClipboard() {
     if (!currentResponseText) return;
+    
+    let textToCopy = currentResponseText;
+    
+    if (currentModule && currentModule.id === 'traductor') {
+        const parts = currentResponseText.split('###');
+        const traduccionPart = parts.find(p => p.toLowerCase().includes('traducción') || p.toLowerCase().includes('traduccion'));
+        if (traduccionPart) {
+            let cleanText = traduccionPart.replace(/<span[^>]*>.*?<\/span> Traducción/i, '').trim();
+            cleanText = cleanText.replace(/<span class="fr-click">/gi, '').replace(/<\/span>/gi, '').trim();
+            textToCopy = cleanText;
+        }
+    } else {
+        textToCopy = textToCopy.replace(/<span class="fr-click">/gi, '').replace(/<\/span>/gi, '');
+    }
+
     try {
-        await navigator.clipboard.writeText(currentResponseText);
+        await navigator.clipboard.writeText(textToCopy);
         const originalText = dom.copyBtn.innerHTML;
         dom.copyBtn.innerHTML = '<span class="material-symbols-outlined">check_circle</span>';
         setTimeout(() => { dom.copyBtn.innerHTML = originalText; }, 2000);
@@ -633,22 +648,33 @@ Por favor responde a mi último mensaje en francés de Quebec continuando el di�
 function speakText(text) {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    const frVoices = voices.filter(v => v.lang.startsWith('fr-CA') || v.lang.startsWith('fr-FR') || v.lang.startsWith('fr-'));
     
-    if (frVoices.length > 0) {
-        let bestVoice = frVoices.find(v => v.lang.startsWith('fr-CA') && (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Google') || v.name.includes('Premium')));
-        if (!bestVoice) bestVoice = frVoices.find(v => v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Google') || v.name.includes('Premium'));
-        if (!bestVoice) bestVoice = frVoices.find(v => v.lang.startsWith('fr-CA'));
-        if (!bestVoice) bestVoice = frVoices[0];
+    const playVoice = () => {
+        const voices = window.speechSynthesis.getVoices();
+        const frVoices = voices.filter(v => v.lang.startsWith('fr'));
         
-        utterance.voice = bestVoice;
+        if (frVoices.length > 0) {
+            let bestVoice = frVoices.find(v => v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Google') || v.name.includes('Premium'));
+            if (!bestVoice) bestVoice = frVoices.find(v => v.lang.startsWith('fr-CA'));
+            if (!bestVoice) bestVoice = frVoices[0];
+            
+            utterance.voice = bestVoice;
+        } else {
+            utterance.lang = 'fr-CA'; 
+        }
+        
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+    };
+
+    if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.onvoiceschanged = () => {
+            playVoice();
+            window.speechSynthesis.onvoiceschanged = null;
+        };
     } else {
-        utterance.lang = 'fr-CA'; 
+        playVoice();
     }
-    
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
 }
 
 function preprocessMarkdown(text) {
