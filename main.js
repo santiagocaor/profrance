@@ -99,14 +99,58 @@ function renderInputs(inputs) {
     group.appendChild(label);
     
     let el;
-    if (input.type === 'textarea') {
-      el = document.createElement('textarea');
-      el.placeholder = input.placeholder || '';
-      // Ajustar altura automáticamente al escribir o pegar
+    let wrapper = null;
+    let clearBtn = null;
+    
+    if (input.type === 'textarea' || input.type === 'text') {
+      wrapper = document.createElement('div');
+      wrapper.className = 'input-wrapper';
+      
+      if (input.type === 'textarea') {
+        el = document.createElement('textarea');
+        el.placeholder = input.placeholder || '';
+        el.addEventListener('input', function() {
+          this.style.height = 'auto';
+          this.style.height = this.scrollHeight + 'px';
+        });
+      } else {
+        el = document.createElement('input');
+        el.type = 'text';
+        el.placeholder = input.placeholder || '';
+      }
+      
+      el.id = input.id;
+      el.name = input.id;
+      el.required = true;
+      
+      // Crear botón "x" de limpieza
+      clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'clear-input-btn hidden';
+      clearBtn.title = 'Borrar texto';
+      clearBtn.innerHTML = '<span class="material-symbols-outlined">close</span>';
+      
+      // Mostrar/ocultar botón según el contenido
       el.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = this.scrollHeight + 'px';
+        if (this.value.trim() !== '') {
+          clearBtn.classList.remove('hidden');
+        } else {
+          clearBtn.classList.add('hidden');
+        }
       });
+      
+      // Acción al hacer clic en el botón de borrar
+      clearBtn.addEventListener('click', function() {
+        el.value = '';
+        if (input.type === 'textarea') {
+          el.style.height = 'auto';
+        }
+        clearBtn.classList.add('hidden');
+        el.focus();
+      });
+      
+      wrapper.appendChild(el);
+      wrapper.appendChild(clearBtn);
     } else if (input.type === 'select') {
       el = document.createElement('select');
       input.options.forEach(opt => {
@@ -115,17 +159,24 @@ function renderInputs(inputs) {
         option.textContent = opt;
         el.appendChild(option);
       });
+      el.id = input.id;
+      el.name = input.id;
+      el.required = true;
     } else {
       el = document.createElement('input');
       el.type = input.type;
       el.placeholder = input.placeholder || '';
+      el.id = input.id;
+      el.name = input.id;
+      el.required = true;
     }
     
-    el.id = input.id;
-    el.name = input.id;
-    el.required = true;
+    if (wrapper) {
+      group.appendChild(wrapper);
+    } else {
+      group.appendChild(el);
+    }
     
-    group.appendChild(el);
     dom.dynamicInputs.appendChild(group);
   });
 }
