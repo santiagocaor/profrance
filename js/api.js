@@ -16,10 +16,12 @@ export async function generateContent(apiKey, prompt) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const payload = {
+    systemInstruction: {
+      parts: [{ text: SYSTEM_INSTRUCTION }]
+    },
     contents: [{
-      parts: [{
-        text: SYSTEM_INSTRUCTION + "\n\n" + prompt
-      }]
+      role: 'user',
+      parts: [{ text: prompt }]
     }],
     generationConfig: {
       temperature: 0.7,
@@ -41,7 +43,24 @@ export async function generateContent(apiKey, prompt) {
     }
 
     const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
+
+    // Validar que la respuesta contenga texto antes de acceder
+    if (!data.candidates || data.candidates.length === 0) {
+      const blockReason = data.promptFeedback?.blockReason;
+      throw new Error(blockReason
+        ? `La solicitud fue bloqueada por el filtro de seguridad: ${blockReason}`
+        : 'La API no devolvió ninguna respuesta. Intenta reformular tu solicitud.');
+    }
+
+    const candidate = data.candidates[0];
+    if (!candidate.content?.parts?.[0]?.text) {
+      const finishReason = candidate.finishReason;
+      throw new Error(finishReason && finishReason !== 'STOP'
+        ? `La respuesta fue interrumpida: ${finishReason}`
+        : 'La API devolvió una respuesta vacía. Intenta de nuevo.');
+    }
+
+    return candidate.content.parts[0].text;
   } catch (error) {
     console.error('Error in API call:', error);
     throw error;
