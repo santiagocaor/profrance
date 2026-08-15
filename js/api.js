@@ -7,7 +7,7 @@ const SYSTEM_INSTRUCTION = `Eres un profesor nativo de francés experto en la en
 - Registro y contexto: Cuando sea relevante, especifica el registro de la traducción (si es muy formal, estándar o si es jerga/familier).
 - Formato de salida: Sé ultra conciso. Toda respuesta debe venir formateada en Markdown limpio (usando títulos '###', reglas horizontales '---', negritas '**' y viñetas '*') para garantizar una lectura rápida y directa en móvil.`;
 
-const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
 
 export async function generateContent(apiKey, prompt) {
   if (!apiKey) {
