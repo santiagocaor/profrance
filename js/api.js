@@ -7,62 +7,80 @@ const SYSTEM_INSTRUCTION = `Eres un profesor nativo de francés experto en la en
 - Registro y contexto: Cuando sea relevante, especifica el registro de la traducción (si es muy formal, estándar o si es jerga/familier).
 - Formato de salida: Sé ultra conciso. Toda respuesta debe venir formateada en Markdown limpio (usando títulos '###', reglas horizontales '---', negritas '**' y viñetas '*') para garantizar una lectura rápida y directa en móvil.`;
 
+const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+
 export async function generateContent(apiKey, prompt) {
   if (!apiKey) {
     throw new Error('Por favor, ingresa tu API Key de Gemini en la barra lateral.');
   }
 
-  const model = 'gemini-2.5-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  let lastError = null;
 
-  const payload = {
-    systemInstruction: {
-      parts: [{ text: SYSTEM_INSTRUCTION }]
-    },
-    contents: [{
-      role: 'user',
-      parts: [{ text: prompt }]
-    }],
-    generationConfig: {
-      temperature: 0.7,
-    }
-  };
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
+  // Intenta con los modelos disponibles en orden de prioridad
+  for (const model of MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const payload = {
+      systemInstruction: {
+        parts: [{ text: SYSTEM_INSTRUCTION }]
       },
-      body: JSON.stringify(payload)
-    });
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        temperature: 0.7,
+      }
+    };
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || 'Error al comunicarse con la API de Gemini');
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const msg = errorData.error?.message || 'Error en la solicitud a Gemini';
+        
+        // Si es error de cuota o rate limit (429), intentamos el siguiente modelo
+        if (response.status === 429 || msg.includes('quota') || msg.includes('rate-limit') || msg.includes('Resource has been exhausted')) {
+          console.warn(`Cuota temporal excedida en ${model}. Conmutando al siguiente modelo...`);
+          lastError = new Error(msg);
+          continue; // Intentar con el siguiente modelo de la lista
+        }
+        
+        throw new Error(msg);
+      }
+
+      const data = await response.json();
+
+      if (!data.candidates || data.candidates.length === 0) {
+        const blockReason = data.promptFeedback?.blockReason;
+        throw new Error(blockReason
+          ? `La solicitud fue bloqueada por el filtro de seguridad: ${blockReason}`
+          : 'La API no devolvió ninguna respuesta. Intenta reformular tu solicitud.');
+      }
+
+      const candidate = data.candidates[0];
+      if (!candidate.content?.parts?.[0]?.text) {
+        const finishReason = candidate.finishReason;
+        throw new Error(finishReason && finishReason !== 'STOP'
+          ? `La respuesta fue interrumpida: ${finishReason}`
+          : 'La API devolvió una respuesta vacía. Intenta de nuevo.');
+      }
+
+      return candidate.content.parts[0].text;
+    } catch (error) {
+      lastError = error;
+      // Si el error contiene mensaje de cuota o modelo no disponible, probamos el siguiente
+      if (error.message && (error.message.includes('quota') || error.message.includes('limit') || error.message.includes('exceeded'))) {
+        continue;
+      }
+      throw error;
     }
-
-    const data = await response.json();
-
-    // Validar que la respuesta contenga texto antes de acceder
-    if (!data.candidates || data.candidates.length === 0) {
-      const blockReason = data.promptFeedback?.blockReason;
-      throw new Error(blockReason
-        ? `La solicitud fue bloqueada por el filtro de seguridad: ${blockReason}`
-        : 'La API no devolvió ninguna respuesta. Intenta reformular tu solicitud.');
-    }
-
-    const candidate = data.candidates[0];
-    if (!candidate.content?.parts?.[0]?.text) {
-      const finishReason = candidate.finishReason;
-      throw new Error(finishReason && finishReason !== 'STOP'
-        ? `La respuesta fue interrumpida: ${finishReason}`
-        : 'La API devolvió una respuesta vacía. Intenta de nuevo.');
-    }
-
-    return candidate.content.parts[0].text;
-  } catch (error) {
-    console.error('Error in API call:', error);
-    throw error;
   }
+
+  // Si todos los modelos fallaron por cuota
+  throw lastError || new Error('Límite de cuota temporal alcanzado en todos los modelos. Por favor espera 10 segundos e inténtalo nuevamente.');
 }
