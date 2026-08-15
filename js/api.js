@@ -7,7 +7,7 @@ const SYSTEM_INSTRUCTION = `Eres un profesor nativo de francés experto en la en
 - Registro y contexto: Cuando sea relevante, especifica el registro de la traducción (si es muy formal, estándar o si es jerga/familier).
 - Formato de salida: Sé ultra conciso. Toda respuesta debe venir formateada en Markdown limpio (usando títulos '###', reglas horizontales '---', negritas '**' y viñetas '*') para garantizar una lectura rápida y directa en móvil.`;
 
-const MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+const MODELS = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.5-flash'];
 
 export async function generateContent(apiKey, prompt) {
   if (!apiKey) {
@@ -42,15 +42,9 @@ export async function generateContent(apiKey, prompt) {
       if (!response.ok) {
         const errorData = await response.json();
         const msg = errorData.error?.message || 'Error en la solicitud a Gemini';
-        
-        // Si es error de cuota o rate limit (429), intentamos el siguiente modelo
-        if (response.status === 429 || msg.includes('quota') || msg.includes('rate-limit') || msg.includes('Resource has been exhausted')) {
-          console.warn(`Cuota temporal excedida en ${model}. Conmutando al siguiente modelo...`);
-          lastError = new Error(msg);
-          continue; // Intentar con el siguiente modelo de la lista
-        }
-        
-        throw new Error(msg);
+        console.warn(`Aviso en ${model} (${response.status}): ${msg}. Probando siguiente modelo...`);
+        lastError = new Error(msg);
+        continue; // Conmutar automáticamente al siguiente modelo
       }
 
       const data = await response.json();
