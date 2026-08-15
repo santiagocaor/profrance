@@ -38,6 +38,23 @@
             title="Importar Lecciones"><span class="material-symbols-outlined">upload</span> Importar</button>
           <input type="file" id="import-file" style="display: none;" accept=".json">
         </div>
+
+        <div class="user-cloud-sync" id="user-cloud-sync" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+          <div id="auth-logged-out">
+            <button id="google-login-btn" class="sidebar-action-btn primary-auth-btn" style="width: 100%; justify-content: center; gap: 0.5rem; background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); font-weight: 600; padding: 0.61rem;" title="Sincronizar en la nube entre Móvil y PC">
+              <span class="material-symbols-outlined">cloud_sync</span> Sincronizar Móvil / PC
+            </button>
+          </div>
+          <div id="auth-logged-in" class="hidden" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden;">
+              <img id="user-avatar" src="" alt="User" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;">
+              <span id="user-name" style="font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary);">Usuario</span>
+            </div>
+            <button id="google-logout-btn" class="sidebar-action-btn" title="Cerrar Sesión" style="padding: 0.3rem 0.5rem; min-width: unset;">
+              <span class="material-symbols-outlined" style="font-size: 1.1rem;">logout</span>
+            </button>
+          </div>
+        </div>
       </div>
     </aside>
 

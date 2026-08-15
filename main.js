@@ -1,5 +1,13 @@
 import { modules } from './js/modules.js';
 import { generateContent } from './js/api.js';
+import { 
+  loginWithGoogle, 
+  logoutUser, 
+  onAuthChange, 
+  saveLessonToCloud, 
+  deleteLessonFromCloud, 
+  subscribeToCloudLessons 
+} from './js/firebase.js';
 
 let currentModule = modules[0];
 let currentResponseText = '';
@@ -27,6 +35,12 @@ const dom = {
   importBtn: document.getElementById('import-btn'),
   importFile: document.getElementById('import-file'),
   copyBtn: document.getElementById('copy-btn'),
+  googleLoginBtn: document.getElementById('google-login-btn'),
+  googleLogoutBtn: document.getElementById('google-logout-btn'),
+  authLoggedOut: document.getElementById('auth-logged-out'),
+  authLoggedIn: document.getElementById('auth-logged-in'),
+  userAvatar: document.getElementById('user-avatar'),
+  userName: document.getElementById('user-name'),
 };
 
 let currentLessonTitle = '';
@@ -34,6 +48,8 @@ let chatHistory = [];
 let currentChatLevel = '';
 let currentChatTopic = '';
 let currentAudioRate = 0.9;
+let currentUser = null;
+let unsubscribeCloudSync = null;
 
 // Utilidad para escapar HTML en mensajes de error (prevención XSS)
 function escapeHtml(str) {
@@ -80,6 +96,57 @@ function init() {
   renderNav();
   selectModule(modules[0].id);
   setupEvents();
+  setupAuth();
+}
+
+function setupAuth() {
+  if (dom.googleLoginBtn) {
+    dom.googleLoginBtn.addEventListener('click', async () => {
+      try {
+        await loginWithGoogle();
+      } catch (e) {
+        alert("Error al iniciar sesión con Google: " + e.message);
+      }
+    });
+  }
+
+  if (dom.googleLogoutBtn) {
+    dom.googleLogoutBtn.addEventListener('click', async () => {
+      try {
+        await logoutUser();
+      } catch (e) {
+        console.error("Error al cerrar sesión:", e);
+      }
+    });
+  }
+
+  onAuthChange((user) => {
+    currentUser = user;
+    if (user) {
+      if (dom.authLoggedOut) dom.authLoggedOut.classList.add('hidden');
+      if (dom.authLoggedIn) dom.authLoggedIn.classList.remove('hidden');
+      if (dom.userAvatar) dom.userAvatar.src = user.photoURL || 'logo.png';
+      if (dom.userName) dom.userName.textContent = user.displayName || user.email || 'Usuario';
+
+      // Sincronizar en tiempo real las lecciones de la nube
+      if (unsubscribeCloudSync) unsubscribeCloudSync();
+      unsubscribeCloudSync = subscribeToCloudLessons(user.uid, (cloudLessons) => {
+        if (cloudLessons && Array.isArray(cloudLessons)) {
+          localStorage.setItem('savedLessons', JSON.stringify(cloudLessons));
+          if (currentModule && currentModule.id === 'saved_lessons') {
+            renderSavedLessonsView();
+          }
+        }
+      });
+    } else {
+      if (dom.authLoggedOut) dom.authLoggedOut.classList.remove('hidden');
+      if (dom.authLoggedIn) dom.authLoggedIn.classList.add('hidden');
+      if (unsubscribeCloudSync) {
+        unsubscribeCloudSync();
+        unsubscribeCloudSync = null;
+      }
+    }
+  });
 }
 
 function renderNav() {
@@ -480,16 +547,20 @@ function saveCurrentLesson() {
         return;
     }
 
-    lessons.push({
+    const newLesson = {
         id: Date.now().toString(),
         title: currentLessonTitle,
         content: currentResponseText,
         module: currentModule.title
-    });
-    
+    };
+
+    lessons.push(newLesson);
     localStorage.setItem('savedLessons', JSON.stringify(lessons));
     
-    // Si estamos en el módulo de guardadas (raro, pero posible), actualizamos
+    if (currentUser) {
+        saveLessonToCloud(currentUser.uid, newLesson).catch(e => console.error("Error guardando en nube:", e));
+    }
+    
     if(currentModule.id === 'saved_lessons') renderSavedLessonsView();
     
     // Feedback visual en el botón
@@ -594,12 +665,17 @@ function loadLesson(lesson) {
     }
 }
 
-function deleteLesson(id, currentFilter) {
+function deleteLesson(id, selectedModuleFilter) {
     if(!confirm("¿Seguro que quieres borrar esta lección?")) return;
     let lessons = getSavedLessons();
     lessons = lessons.filter(l => l.id !== id);
     localStorage.setItem('savedLessons', JSON.stringify(lessons));
-    renderSavedLessonsView(currentFilter);
+    
+    if (currentUser) {
+        deleteLessonFromCloud(currentUser.uid, id).catch(e => console.error("Error al eliminar de la nube:", e));
+    }
+    
+    renderSavedLessonsView(selectedModuleFilter);
 }
 
 async function copyToClipboard() {
